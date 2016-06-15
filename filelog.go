@@ -176,7 +176,7 @@ func (w *FileLogWriter) intRotate() error {
 	}
 
 	// If we are keeping log files, move it to the next available number
-	if w.rotate {
+	if w.rotate || w.daily {
 		_, err := os.Lstat(w.filename)
 		if err == nil { // file exists
 			// Find the next available number
