@@ -171,6 +171,7 @@ func (w *FileLogWriter) renameFile() error {
 	// Find the next available number
 	num := 1
 	fname := ""
+	var err error = nil
 	for ; err == nil && num <= 999; num++ {
 		fname = w.filename + fmt.Sprintf(".%03d", num)
 		_, err = os.Lstat(fname)
@@ -185,6 +186,7 @@ func (w *FileLogWriter) renameFile() error {
 	if err != nil {
 		return fmt.Errorf("Rotate: %s\n", err)
 	}
+	return err
 }
 
 // If this is called in a threaded context, it MUST be synchronized
@@ -199,13 +201,13 @@ func (w *FileLogWriter) intRotate() error {
 	if w.rotate {
 		_, err := os.Lstat(w.filename)
 		if err == nil { // file exists
-			renameFile()
+			w.renameFile()
 		}
 	}
 
 	if w.daily {
 		finfo, err := os.Lstat(w.filename)
-		if err != nil {
+		if err == nil {
 			n := time.Now()
 			m := finfo.ModTime()
 			if n.Year() != m.Year() && n.YearDay() != m.YearDay() {
