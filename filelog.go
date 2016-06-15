@@ -167,6 +167,26 @@ func (w *FileLogWriter) Rotate() {
 	w.rot <- true
 }
 
+func (w *FileLogWriter) renameFile() error {
+	// Find the next available number
+	num := 1
+	fname := ""
+	for ; err == nil && num <= 999; num++ {
+		fname = w.filename + fmt.Sprintf(".%03d", num)
+		_, err = os.Lstat(fname)
+	}
+	// return error if the last file checked still existed
+	if err == nil {
+		return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
+	}
+
+	// Rename the file to its newfound home
+	err = os.Rename(w.filename, fname)
+	if err != nil {
+		return fmt.Errorf("Rotate: %s\n", err)
+	}
+}
+
 // If this is called in a threaded context, it MUST be synchronized
 func (w *FileLogWriter) intRotate() error {
 	// Close any log file that may be open
@@ -176,25 +196,20 @@ func (w *FileLogWriter) intRotate() error {
 	}
 
 	// If we are keeping log files, move it to the next available number
-	if w.rotate || w.daily {
+	if w.rotate {
 		_, err := os.Lstat(w.filename)
 		if err == nil { // file exists
-			// Find the next available number
-			num := 1
-			fname := ""
-			for ; err == nil && num <= 999; num++ {
-				fname = w.filename + fmt.Sprintf(".%03d", num)
-				_, err = os.Lstat(fname)
-			}
-			// return error if the last file checked still existed
-			if err == nil {
-				return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
-			}
+			renameFile()
+		}
+	}
 
-			// Rename the file to its newfound home
-			err = os.Rename(w.filename, fname)
-			if err != nil {
-				return fmt.Errorf("Rotate: %s\n", err)
+	if w.daily {
+		finfo, err := os.Lstat(w.filename)
+		if err != nil {
+			n := time.Now()
+			m := finfo.ModTime()
+			if n.Year() != m.Year() && n.YearDay() != m.YearDay() {
+				w.renameFile()
 			}
 		}
 	}
