@@ -72,13 +72,14 @@ func (w *FileLogWriter) Close() {
 //
 // The standard log-line format is:
 //   [%D %T] [%L] (%S) %M
-func NewFileLogWriter(fname string, rotate bool, discardWhenBusy bool, perm os.FileMode) *FileLogWriter {
+func NewFileLogWriter(fname string, rotate bool, daily bool, discardWhenBusy bool, perm os.FileMode) *FileLogWriter {
 	w := &FileLogWriter{
 		rec:             make(chan *LogRecord, LogBufferLength),
 		rot:             make(chan bool),
 		filename:        fname,
 		format:          "[%D %T] [%L] (%S) %M",
 		rotate:          rotate,
+		daily:           daily,
 		discardWhenBusy: discardWhenBusy,
 		perm:            perm,
 		quit:            make(chan struct{}),
@@ -105,6 +106,7 @@ func NewFileLogWriter(fname string, rotate bool, discardWhenBusy bool, perm os.F
 			lastRec       LogRecord
 			lastRepeatedN int
 		)
+		
 		for {
 			select {
 			case <-w.rot:
@@ -210,7 +212,7 @@ func (w *FileLogWriter) intRotate() error {
 		if err == nil {
 			n := time.Now()
 			m := finfo.ModTime()
-			if n.Year() != m.Year() && n.YearDay() != m.YearDay() {
+			if n.Year() != m.Year() || n.YearDay() != m.YearDay() {
 				w.renameFile()
 			}
 		}
@@ -290,8 +292,8 @@ func (w *FileLogWriter) SetRotate(rotate bool) *FileLogWriter {
 
 // NewXMLLogWriter is a utility method for creating a FileLogWriter set up to
 // output XML record log messages instead of line-based ones.
-func NewXMLLogWriter(fname string, rotate bool) *FileLogWriter {
-	return NewFileLogWriter(fname, rotate, false, 0).SetFormat(
+func NewXMLLogWriter(fname string, rotate bool, daily bool) *FileLogWriter {
+	return NewFileLogWriter(fname, rotate, daily, false, 0).SetFormat(
 		`	<record level="%L">
 		<timestamp>%D %T</timestamp>
 		<source>%S</source>
